@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"runtime"
 	"time"
 
@@ -19,20 +20,20 @@ func main() {
 
 	w := NewWorld(2000, 2000, 100, mustTexture(getTextures(r)))
 	go func() {
-		for range time.Tick(time.Second / 60) {
+		for range time.Tick(time.Second / 1) {
 			w.ShuffleTiles()
 		}
 	}()
 
-	// AddHandlerFunc(func(evt sdl.Event) bool {
-	// 	switch e := evt.(type) {
-	// 	case *sdl.MouseWheelEvent:
-	// 		w.ChangeTileSize(e.Y)
-	// 		fmt.Println(w.tileSize, e.Y)
-	// 		return true
-	// 	}
-	// 	return false
-	// })
+	AddHandlerFunc(func(evt sdl.Event) bool {
+		switch e := evt.(type) {
+		case *sdl.MouseWheelEvent:
+			w.ChangeTileSize(e.Y)
+			fmt.Println(w.tileSize, e.Y)
+			return true
+		}
+		return false
+	})
 
 	EventLoop(r, w)
 }

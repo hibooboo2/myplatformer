@@ -25,6 +25,7 @@ func EventLoop(r *sdl.Renderer, e Painter) {
 	go func(e Painter) {
 		runtime.LockOSThread()
 		defer runtime.UnlockOSThread()
+
 		start := time.Now()
 		i := 0
 		computedFrameTime := time.Second / time.Duration(FramesPerSecond)
@@ -33,6 +34,7 @@ func EventLoop(r *sdl.Renderer, e Painter) {
 				computedFrameTime = time.Nanosecond
 			}
 			ticker := time.NewTicker(computedFrameTime)
+			fmt.Println(computedFrameTime)
 			for range ticker.C {
 				e.Paint(r)
 				r.Present()
@@ -71,8 +73,6 @@ func EventLoop(r *sdl.Renderer, e Painter) {
 				continue
 			}
 			handled := false
-			handlersLock.RLock()
-			defer handlersLock.RUnlock()
 			for _, h := range handlers {
 				handled = h.Handle(event)
 				if handled {

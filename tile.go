@@ -100,14 +100,11 @@ func getTextures(r *sdl.Renderer) ([]*sdl.Texture, error) {
 		if !strings.HasSuffix(f.Name(), ".BMP") {
 			continue
 		}
-		fmt.Println(f.Name())
 
 		t, err := img.LoadTexture(r, dir+f.Name())
 		if err != nil {
 			return nil, err
 		}
-		_, _, h, w, _ := t.Query()
-		fmt.Println(h, w)
 		textures = append(textures, t)
 	}
 	return textures, nil
