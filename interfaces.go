@@ -29,6 +29,10 @@ type Entity interface {
 	Painter
 	Updater
 	Reseter
+	Resizer
+}
+type Resizer interface {
+	Resize(delta int32)
 }
 
 type EntityList []Entity
@@ -60,5 +64,11 @@ func (el *EntityList) Update() {
 func (el *EntityList) Reset() {
 	for _, e := range *el {
 		e.Reset()
+	}
+}
+
+func (el *EntityList) Resize(delta int32) {
+	for _, e := range *el {
+		e.Resize(delta)
 	}
 }

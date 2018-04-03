@@ -20,7 +20,11 @@ func main() {
 	defer cleanup()
 
 	w := NewWorld(2000, 2000, 100, mustTexture(getTextures(r)))
-
+	p, err := NewPlayer(r)
+	if err != nil {
+		panic(err)
+	}
+	entities := EntityList{w, p}
 	go func() {
 		for range time.Tick(time.Second / 1) {
 			w.ShuffleTiles()
@@ -40,7 +44,7 @@ func main() {
 			}
 			return true
 		case *sdl.MouseWheelEvent:
-			w.ChangeTileSize(e.Y)
+			entities.Resize(e.Y)
 			return true
 		case *sdl.ControllerButtonEvent:
 			switch e.Type {
@@ -62,7 +66,7 @@ func main() {
 		}
 	})
 
-	EventLoop(r, w)
+	EventLoop(r, &entities)
 }
 
 func GetRenderer(h, w int32) (*sdl.Renderer, func()) {

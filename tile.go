@@ -11,6 +11,10 @@ import (
 	"github.com/veandco/go-sdl2/sdl"
 )
 
+var (
+	_ Entity = &World{}
+)
+
 type World struct {
 	cells    [][]Tile
 	tileSize int32
@@ -19,7 +23,6 @@ type World struct {
 	textures []*sdl.Texture
 	sync.RWMutex
 }
-
 type Tile struct {
 	Name    string
 	texture int
@@ -89,9 +92,9 @@ func (w *World) ShuffleTiles() {
 	w.Unlock()
 }
 
-func (w *World) ChangeTileSize(delta int32) {
+func (w *World) Resize(delta int32) {
 	w.Lock()
-	w.Unlock()
+	defer w.Unlock()
 	w.tileSize += delta
 	if w.tileSize > 256 {
 		w.tileSize = 256
@@ -130,4 +133,13 @@ func getTextures(r *sdl.Renderer) ([]*sdl.Texture, error) {
 		textures = append(textures, t)
 	}
 	return textures, nil
+}
+
+func (w *World) Destroy() {
+}
+
+func (w *World) Reset() {
+}
+
+func (w *World) Update() {
 }

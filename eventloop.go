@@ -18,7 +18,7 @@ var (
 	DefaultHandler = EventHandlerFunc(handleEvent)
 )
 
-func EventLoop(r *sdl.Renderer, e Painter) {
+func EventLoop(r *sdl.Renderer, e Entity) {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
@@ -57,7 +57,7 @@ func EventLoop(r *sdl.Renderer, e Painter) {
 	}
 }
 
-func PaintLoop(r *sdl.Renderer, e Painter) {
+func PaintLoop(r *sdl.Renderer, e Entity) {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
@@ -65,6 +65,7 @@ func PaintLoop(r *sdl.Renderer, e Painter) {
 	i := 0
 	start := time.Now()
 	for range ticker.C {
+		e.Update()
 		e.Paint(r)
 		r.Present()
 		i++
