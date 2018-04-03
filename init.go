@@ -9,16 +9,18 @@ import (
 )
 
 const (
-	// FrameTime time between Frames. Used for the paint Loop
+	// FramesPerSecond num of frames a second to try and render
 	FramesPerSecond = 60
-	FrameTolerance  = FramesPerSecond / 10
+	// FrameTolerance howmany frames per second are allowed to be skipped without recalculating frame time.
+	FrameTolerance = FramesPerSecond / 10
 )
 
 func main() {
-	r, cleanup := Init(800, 600)
+	r, cleanup := GetRenderer(800, 600)
 	defer cleanup()
 
 	w := NewWorld(2000, 2000, 100, mustTexture(getTextures(r)))
+
 	go func() {
 		for range time.Tick(time.Second / 1) {
 			w.ShuffleTiles()
@@ -27,18 +29,43 @@ func main() {
 
 	AddHandlerFunc(func(evt sdl.Event) bool {
 		switch e := evt.(type) {
+		case *sdl.JoyDeviceEvent:
+			return true
+		case *sdl.ControllerDeviceEvent:
+			switch e.Type {
+			case sdl.CONTROLLERDEVICEADDED:
+				sdl.GameControllerOpen(int(e.Which))
+			case sdl.CONTROLLERDEVICEREMOVED:
+				fmt.Println("Removed controller")
+			}
+			return true
 		case *sdl.MouseWheelEvent:
 			w.ChangeTileSize(e.Y)
-			fmt.Println(w.tileSize, e.Y)
 			return true
+		case *sdl.ControllerButtonEvent:
+			switch e.Type {
+			case sdl.CONTROLLERBUTTONDOWN:
+				fmt.Println("Button pressed down")
+			case sdl.CONTROLLERBUTTONUP:
+				fmt.Println("Button released")
+			default:
+				fmt.Printf("Unknown btn event: %##v\n", e)
+			}
+			return true
+		case *sdl.ControllerAxisEvent:
+			fmt.Printf("Ax:%v Type:%v Val:%v Controller:%v\n", e.Axis, e.Type, e.Value, e.Which)
+			return true
+		case *sdl.JoyAxisEvent, *sdl.JoyButtonEvent:
+			return true
+		default:
+			return false
 		}
-		return false
 	})
 
 	EventLoop(r, w)
 }
 
-func Init(h, w int32) (*sdl.Renderer, func()) {
+func GetRenderer(h, w int32) (*sdl.Renderer, func()) {
 	runtime.LockOSThread()
 
 	if err := sdl.Init(sdl.INIT_EVERYTHING); err != nil {
@@ -53,7 +80,7 @@ func Init(h, w int32) (*sdl.Renderer, func()) {
 	window.SetBordered(true)
 	// window.SetGrab(true)
 	// window.SetWindowOpacity(0.4)
-
+	sdl.GameControllerOpen(0)
 	// go eventLoop()
 	return r,
 		func() {

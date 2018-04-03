@@ -22,53 +22,10 @@ func EventLoop(r *sdl.Renderer, e Painter) {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
-	go func(e Painter) {
-		runtime.LockOSThread()
-		defer runtime.UnlockOSThread()
+	go PaintLoop(r, e)
 
-		start := time.Now()
-		i := 0
-		computedFrameTime := time.Second / time.Duration(FramesPerSecond)
-		for {
-			if computedFrameTime <= 0 {
-				computedFrameTime = time.Nanosecond
-			}
-			ticker := time.NewTicker(computedFrameTime)
-			fmt.Println(computedFrameTime)
-			for range ticker.C {
-				e.Paint(r)
-				r.Present()
-				i++
-				// fmt.Print(".")
-				took := time.Since(start)
-				if took > time.Second {
-					avg := took / time.Duration(i)
-					adjust := false
-					buff := float64(took / time.Second)
-					expFrames := int(float64(FramesPerSecond) * buff)
-					if expFrames > i+int(buff*FrameTolerance) || expFrames < i-int(buff*FrameTolerance) {
-						fmt.Printf("Missed frames ExpFrames: %v Actual: %v\n", expFrames, i)
-						adjust = true
-					} else {
-						fmt.Printf("no missed frames Exp: %v Got: %v\r", expFrames, i)
-					}
-					if adjust {
-						ticker.Stop()
-						computedFrameTime = computedFrameTime - (avg - time.Second/FramesPerSecond)
-						fmt.Println(computedFrameTime)
-					}
-					start = time.Now()
-					i = 0
-					break
-				}
-
-			}
-		}
-	}(e)
-
-	for {
-		select {
-		case event := <-events:
+	go func() {
+		for event := range events {
 			if event == nil {
 				continue
 			}
@@ -85,11 +42,45 @@ func EventLoop(r *sdl.Renderer, e Painter) {
 			if !handled {
 				fmt.Printf("Unhandled %T %##v\n", event, event)
 			}
+		}
+	}()
+
+	for {
+		select {
 		case events <- sdl.PollEvent():
+			time.Sleep(time.Millisecond)
 		case <-quit:
+			close(events)
 			fmt.Println("Quitting")
 			return
 		}
+	}
+}
+
+func PaintLoop(r *sdl.Renderer, e Painter) {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	ticker := time.NewTicker(time.Second / FramesPerSecond)
+	i := 0
+	start := time.Now()
+	for range ticker.C {
+		e.Paint(r)
+		r.Present()
+		i++
+		took := time.Since(start)
+		if took > time.Second {
+			buff := float64(took / time.Second)
+			expFrames := int(float64(FramesPerSecond) * buff)
+			if expFrames > i+int(buff*FrameTolerance) || expFrames < i-int(buff*FrameTolerance) {
+				fmt.Printf("Missed frames ExpFrames: %v Actual: %v\n", expFrames, i)
+			} else {
+				// fmt.Printf("no missed frames Exp: %v Got: %v\n", expFrames, i)
+			}
+			start = time.Now()
+			i = 0
+		}
+
 	}
 }
 

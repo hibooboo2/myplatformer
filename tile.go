@@ -14,6 +14,8 @@ import (
 type World struct {
 	cells    [][]Tile
 	tileSize int32
+	height   int
+	width    int
 	textures []*sdl.Texture
 	sync.RWMutex
 }
@@ -28,43 +30,63 @@ var _ Painter = &World{}
 // Paint will draw the map in the renderer
 func (w *World) Paint(r *sdl.Renderer) (err error) {
 	w.RLock()
-	defer w.RUnlock()
+	v := r.GetViewport()
+	tilesWide := v.W / w.tileSize
+	tilesHigh := v.H / w.tileSize
 
-	for row, cols := range w.cells {
-		for col, t := range cols {
+	for row, cols := range w.cells[:tilesHigh+1] {
+		for col, t := range cols[:tilesWide+1] {
 			if t.texture > len(w.textures)-1 || w.textures[t.texture] == nil {
 				fmt.Println("Texture not found:", t.texture)
 				continue
 			}
 			err = r.Copy(w.textures[t.texture], nil, &sdl.Rect{H: w.tileSize, W: w.tileSize, X: int32(col) * w.tileSize, Y: int32(row) * w.tileSize})
 			if err != nil {
+				w.RUnlock()
 				return err
 			}
 		}
 	}
+	w.RUnlock()
 	return nil
 }
 
-func NewWorld(h, w int, tileSize int32, textures []*sdl.Texture) *World {
+func NewWorld(w int, h int, tileSize int32, textures []*sdl.Texture) *World {
 	world := new(World)
-	world.cells = make([][]Tile, h)
 	world.textures = textures
 	world.tileSize = tileSize
-	for row := range world.cells {
-		world.cells[row] = make([]Tile, w)
-	}
+	world.height = h
+	world.width = w
+	world.cells = world.newTileSlice()
 	world.ShuffleTiles()
 	return world
 }
 
+func (w *World) newTileSlice() [][]Tile {
+	w.RLock()
+	height := w.height
+	width := w.width
+	w.RUnlock()
+
+	tiles := make([][]Tile, height)
+	for row := range tiles {
+		tiles[row] = make([]Tile, width)
+	}
+	return tiles
+}
+
 func (w *World) ShuffleTiles() {
-	w.Lock()
-	defer w.Unlock()
-	for row := range w.cells {
-		for col := range w.cells[row] {
-			w.cells[row][col].texture = int(rand.Int63()) % (len(w.textures) - 1)
+	newTiles := w.newTileSlice()
+
+	for row := range newTiles {
+		for col := range newTiles[row] {
+			newTiles[row][col].texture = int(rand.Int63()) % (len(w.textures) - 1)
 		}
 	}
+
+	w.Lock()
+	w.cells = newTiles
+	w.Unlock()
 }
 
 func (w *World) ChangeTileSize(delta int32) {
