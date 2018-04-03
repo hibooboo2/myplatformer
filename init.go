@@ -19,12 +19,10 @@ func main() {
 	r, cleanup := GetRenderer(800, 600)
 	defer cleanup()
 
-	w := NewWorld(2000, 2000, 100, mustTexture(getTextures(r)))
-	p, err := NewPlayer(r)
-	if err != nil {
-		panic(err)
-	}
-	entities := EntityList{w, p}
+	w := NewWorld(2000, 2000, 100, r)
+
+	entities := EntityList{w}
+
 	go func() {
 		for range time.Tick(time.Second / 1) {
 			w.ShuffleTiles()
@@ -57,7 +55,6 @@ func main() {
 			}
 			return true
 		case *sdl.ControllerAxisEvent:
-			fmt.Printf("Ax:%v Type:%v Val:%v Controller:%v\n", e.Axis, e.Type, e.Value, e.Which)
 			return true
 		case *sdl.JoyAxisEvent, *sdl.JoyButtonEvent:
 			return true

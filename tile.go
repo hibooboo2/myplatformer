@@ -17,11 +17,13 @@ var (
 
 type World struct {
 	cells    [][]Tile
+	players  []*Player
 	tileSize int32
 	height   int
 	width    int
 	textures []*sdl.Texture
 	sync.RWMutex
+	paused bool
 }
 type Tile struct {
 	Name    string
@@ -54,14 +56,16 @@ func (w *World) Paint(r *sdl.Renderer) (err error) {
 	return nil
 }
 
-func NewWorld(w int, h int, tileSize int32, textures []*sdl.Texture) *World {
+func NewWorld(w int, h int, tileSize int32, r *sdl.Renderer) *World {
 	world := new(World)
-	world.textures = textures
+	world.textures = mustTexture(getTextures(r))
 	world.tileSize = tileSize
 	world.height = h
 	world.width = w
 	world.cells = world.newTileSlice()
 	world.ShuffleTiles()
+	p := mustPlayer(NewPlayer(r))
+	world.players = append(world.players, p)
 	return world
 }
 
@@ -102,6 +106,7 @@ func (w *World) Resize(delta int32) {
 	if w.tileSize < 10 {
 		w.tileSize = 10
 	}
+	fmt.Println("World Tile Size:", w.tileSize)
 }
 
 func mustTexture(textures []*sdl.Texture, err error) []*sdl.Texture {
@@ -142,4 +147,8 @@ func (w *World) Reset() {
 }
 
 func (w *World) Update() {
+}
+
+func (w *World) Handle(evt sdl.Event) bool {
+	return false
 }

@@ -30,6 +30,7 @@ type Entity interface {
 	Updater
 	Reseter
 	Resizer
+	EventHandler
 }
 type Resizer interface {
 	Resize(delta int32)
@@ -71,4 +72,14 @@ func (el *EntityList) Resize(delta int32) {
 	for _, e := range *el {
 		e.Resize(delta)
 	}
+}
+
+func (el *EntityList) Handle(evt sdl.Event) bool {
+	var handled bool
+	for _, e := range *el {
+		if e.Handle(evt) {
+			handled = true
+		}
+	}
+	return handled
 }

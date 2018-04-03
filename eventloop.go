@@ -42,6 +42,7 @@ func EventLoop(r *sdl.Renderer, e Entity) {
 			if !handled {
 				fmt.Printf("Unhandled %T %##v\n", event, event)
 			}
+			e.Handle(event)
 		}
 	}()
 
