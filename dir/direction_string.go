@@ -4,14 +4,40 @@ package dir
 
 import "strconv"
 
-const _DIRECTION_name = "NORTH"
+const (
+	_DIRECTION_name_0 = "NORTH"
+	_DIRECTION_name_1 = "WESTNORTH_WEST"
+	_DIRECTION_name_2 = "SOUTH"
+	_DIRECTION_name_3 = "SOUTH_WEST"
+	_DIRECTION_name_4 = "EASTNORTH_EAST"
+	_DIRECTION_name_5 = "SOUTH_EAST"
+	_DIRECTION_name_6 = "STOP"
+)
 
-var _DIRECTION_index = [...]uint8{0, 5}
+var (
+	_DIRECTION_index_1 = [...]uint8{0, 4, 14}
+	_DIRECTION_index_4 = [...]uint8{0, 4, 14}
+)
 
 func (i DIRECTION) String() string {
-	i -= 1
-	if i < 0 || i >= DIRECTION(len(_DIRECTION_index)-1) {
-		return "DIRECTION(" + strconv.FormatInt(int64(i+1), 10) + ")"
+	switch {
+	case i == 1:
+		return _DIRECTION_name_0
+	case 4 <= i && i <= 5:
+		i -= 4
+		return _DIRECTION_name_1[_DIRECTION_index_1[i]:_DIRECTION_index_1[i+1]]
+	case i == 8:
+		return _DIRECTION_name_2
+	case i == 12:
+		return _DIRECTION_name_3
+	case 16 <= i && i <= 17:
+		i -= 16
+		return _DIRECTION_name_4[_DIRECTION_index_4[i]:_DIRECTION_index_4[i+1]]
+	case i == 24:
+		return _DIRECTION_name_5
+	case i == 256:
+		return _DIRECTION_name_6
+	default:
+		return "DIRECTION(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _DIRECTION_name[_DIRECTION_index[i]:_DIRECTION_index[i+1]]
 }
