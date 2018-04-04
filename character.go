@@ -101,7 +101,6 @@ func (p *Player) Handle(evt sdl.Event) bool {
 	case *sdl.ControllerButtonEvent:
 	case *sdl.ControllerAxisEvent:
 		if e.Which == p.controller {
-
 			switch e.Axis {
 			case sdl.CONTROLLER_AXIS_LEFTX, sdl.CONTROLLER_AXIS_RIGHTX:
 				// fmt.Println("CONTROLLER_AXIS_LEFTX")

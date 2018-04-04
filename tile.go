@@ -52,6 +52,10 @@ func (w *World) Paint(r *sdl.Renderer) (err error) {
 			}
 		}
 	}
+	for _, p := range w.players {
+		p.Paint(r)
+	}
+
 	w.RUnlock()
 	return nil
 }
@@ -147,8 +151,23 @@ func (w *World) Reset() {
 }
 
 func (w *World) Update() {
+	w.RLock()
+	if w.paused {
+		w.RUnlock()
+		return
+	}
+	w.RUnlock()
+	for _, p := range w.players {
+		p.Update()
+	}
 }
 
 func (w *World) Handle(evt sdl.Event) bool {
-	return false
+	var handled bool
+	for _, p := range w.players {
+		if p.Handle(evt) {
+			handled = true
+		}
+	}
+	return handled
 }
