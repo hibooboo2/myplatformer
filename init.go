@@ -41,9 +41,6 @@ func main() {
 				fmt.Println("Removed controller")
 			}
 			return true
-		case *sdl.MouseWheelEvent:
-			entities.Resize(e.Y)
-			return true
 		case *sdl.ControllerButtonEvent:
 			switch e.Type {
 			case sdl.CONTROLLERBUTTONDOWN:

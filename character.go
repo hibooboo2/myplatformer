@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sync/atomic"
 
+	. "github.com/hibooboo2/myplatformer/dir"
 	"github.com/veandco/go-sdl2/img"
 	"github.com/veandco/go-sdl2/sdl"
 )
@@ -18,18 +19,17 @@ type Player struct {
 	H, W         *int32
 	size         *int32
 	dir          *int32
-	dirx         *int32
-	diry         *int32
 	frame        *int32
 	frameCounter *int32
 	speed        *int32
 	controller   sdl.JoystickID
+	keys         []uint8
 }
 
 func NewPlayer(r *sdl.Renderer) (*Player, error) {
 	p := new(Player)
 
-	t, err := img.LoadTexture(r, "assets/char.png")
+	t, err := img.LoadTexture(r, "assets/penguin.png")
 	if err != nil {
 		return nil, err
 	}
@@ -38,18 +38,18 @@ func NewPlayer(r *sdl.Renderer) (*Player, error) {
 	if err != nil {
 		return nil, err
 	}
-	h = h / 4
+	h = h / 8
 	p.H = &h
-	w = w / 4
+	w = w / 8
 	p.W = &w
 	p.size = p.H
 	speed := int32(5)
 	p.speed = &speed
 	p.frame = new(int32)
 	p.frameCounter = new(int32)
-	p.dirx = new(int32)
-	p.diry = new(int32)
 	p.dir = new(int32)
+	*p.dir = STOP
+	p.keys = sdl.GetKeyboardState()
 	return p, nil
 }
 
@@ -69,45 +69,70 @@ func (p *Player) Paint(r *sdl.Renderer) error {
 func (p *Player) Update() {
 	framCounter := atomic.AddInt32(p.frameCounter, 1)
 
-	dirx := atomic.LoadInt32(p.dirx) / 2000
-	diry := atomic.LoadInt32(p.diry) / 2000
-	fmt.Printf("%v \t%v\r", dirx, diry)
-	if dirx == 0 && diry == 0 {
+	if atomic.LoadInt32(p.dir) == 99 {
 		return
 	}
-	var dir int32
-	switch {
-	case dirx == 3:
-		dir = 0
-	case dirx == -3:
-		dir = 1
-	case diry == 3:
-		dir = 2
-	case diry == -3:
-		dir = 3
-	}
-	atomic.StoreInt32(p.dir, dir)
-
 	if framCounter%atomic.LoadInt32(p.speed) == 0 {
-		atomic.StoreInt32(p.frame, (atomic.LoadInt32(p.frame)+1)%4)
+		atomic.StoreInt32(p.frame, (atomic.LoadInt32(p.frame)+1)%8)
 	}
 	if framCounter > 10000 {
 		atomic.StoreInt32(p.frameCounter, 0)
 	}
 }
 
+var DIR_FRAME = map[DIRECTION]int32{
+	SOUTH:      0,
+	SOUTH_WEST: 1,
+	WEST:       2,
+	NORTH_WEST: 3,
+	NORTH:      4,
+	NORTH_EAST: 5,
+	EAST:       6,
+	SOUTH_EAST: 7,
+	STOP:       8,
+}
+
 func (p *Player) Handle(evt sdl.Event) bool {
 	switch e := evt.(type) {
 	case *sdl.ControllerButtonEvent:
+	case *sdl.MouseWheelEvent:
+		p.Resize(e.Y)
+		return true
 	case *sdl.ControllerAxisEvent:
 		if e.Which == p.controller {
 			switch e.Axis {
 			case sdl.CONTROLLER_AXIS_LEFTX, sdl.CONTROLLER_AXIS_RIGHTX:
 				// fmt.Println("CONTROLLER_AXIS_LEFTX")
-				atomic.StoreInt32(p.dirx, int32(e.Value))
+				dir := DIRECTION(atomic.LoadInt32(p.dir))
+				val := e.Value / AXIS_TOLERANCE
+				switch {
+				case val > 0:
+					dir = dir & (NORTH | SOUTH)
+					dir = dir | EAST
+				case val < 0:
+					dir = dir & (NORTH | SOUTH)
+					dir = dir | WEST
+				case val == 0:
+					dir = STOP
+				}
+				fmt.Printf("%s %v X\n", DIRECTION(dir), val)
+				atomic.StoreInt32(p.dir, int32(DIR_FRAME[dir]))
 			case sdl.CONTROLLER_AXIS_LEFTY, sdl.CONTROLLER_AXIS_RIGHTY:
 				// fmt.Println("CONTROLLER_AXIS_LEFTY")
-				atomic.StoreInt32(p.diry, int32(e.Value))
+				dir := DIRECTION(atomic.LoadInt32(p.dir))
+				val := e.Value / AXIS_TOLERANCE
+				switch {
+				case val > 0:
+					dir = dir & (EAST | WEST)
+					dir = dir | NORTH
+				case val < 0:
+					dir = dir & (EAST | WEST)
+					dir = dir | SOUTH
+				case val == 0:
+					dir = STOP
+				}
+				fmt.Printf("%s %v Y\n", DIRECTION(dir), val)
+				atomic.StoreInt32(p.dir, int32(DIR_FRAME[dir]))
 			// case sdl.CONTROLLER_AXIS_RIGHTX:
 			// 	fmt.Println("CONTROLLER_AXIS_RIGHTX")
 			// case sdl.CONTROLLER_AXIS_RIGHTY:
@@ -128,7 +153,29 @@ func (p *Player) Handle(evt sdl.Event) bool {
 	case *sdl.JoyAxisEvent:
 	case *sdl.JoyButtonEvent:
 	case *sdl.JoyDeviceEvent:
-
+	case *sdl.KeyboardEvent:
+		var dir DIRECTION
+		switch {
+		case (p.keys[sdl.SCANCODE_W] & p.keys[sdl.SCANCODE_A]) == 1:
+			dir = NORTH_EAST
+		case (p.keys[sdl.SCANCODE_W] & p.keys[sdl.SCANCODE_D]) == 1:
+			dir = NORTH_WEST
+		case (p.keys[sdl.SCANCODE_S] & p.keys[sdl.SCANCODE_A]) == 1:
+			dir = SOUTH_EAST
+		case (p.keys[sdl.SCANCODE_S] & p.keys[sdl.SCANCODE_D]) == 1:
+			dir = SOUTH_WEST
+		case p.keys[sdl.SCANCODE_W] == 1:
+			dir = NORTH
+		case p.keys[sdl.SCANCODE_S] == 1:
+			dir = SOUTH
+		case p.keys[sdl.SCANCODE_D] == 1:
+			dir = WEST
+		case p.keys[sdl.SCANCODE_A] == 1:
+			dir = EAST
+		default:
+			dir = STOP
+		}
+		atomic.StoreInt32(p.dir, int32(DIR_FRAME[dir]))
 	}
 	return false
 }

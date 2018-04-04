@@ -106,9 +106,9 @@ func handleEvent(event sdl.Event) bool {
 	case *sdl.KeyboardEvent:
 		if (e.Keysym.Mod | sdl.KMOD_CTRL) == sdl.KMOD_CTRL {
 			switch e.Keysym.Sym {
-			case sdl.K_w, sdl.K_q, sdl.K_c, sdl.K_d:
-				quit <- struct{}{}
-				return true
+			case sdl.K_q, sdl.K_c:
+				// quit <- struct{}{}
+				// return true
 			}
 		}
 	case *sdl.MouseMotionEvent:

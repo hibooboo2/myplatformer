@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/veandco/go-sdl2/img"
 	"github.com/veandco/go-sdl2/sdl"
@@ -18,7 +19,7 @@ var (
 type World struct {
 	cells    [][]Tile
 	players  []*Player
-	tileSize int32
+	tileSize *int32
 	height   int
 	width    int
 	textures []*sdl.Texture
@@ -36,8 +37,9 @@ var _ Painter = &World{}
 func (w *World) Paint(r *sdl.Renderer) (err error) {
 	w.RLock()
 	v := r.GetViewport()
-	tilesWide := v.W / w.tileSize
-	tilesHigh := v.H / w.tileSize
+	tileSize := atomic.LoadInt32(w.tileSize)
+	tilesWide := v.W / tileSize
+	tilesHigh := v.H / tileSize
 
 	for row, cols := range w.cells[:tilesHigh+1] {
 		for col, t := range cols[:tilesWide+1] {
@@ -45,7 +47,7 @@ func (w *World) Paint(r *sdl.Renderer) (err error) {
 				fmt.Println("Texture not found:", t.texture)
 				continue
 			}
-			err = r.Copy(w.textures[t.texture], nil, &sdl.Rect{H: w.tileSize, W: w.tileSize, X: int32(col) * w.tileSize, Y: int32(row) * w.tileSize})
+			err = r.Copy(w.textures[t.texture], nil, &sdl.Rect{H: tileSize, W: tileSize, X: int32(col) * tileSize, Y: int32(row) * tileSize})
 			if err != nil {
 				w.RUnlock()
 				return err
@@ -63,7 +65,7 @@ func (w *World) Paint(r *sdl.Renderer) (err error) {
 func NewWorld(w int, h int, tileSize int32, r *sdl.Renderer) *World {
 	world := new(World)
 	world.textures = mustTexture(getTextures(r))
-	world.tileSize = tileSize
+	world.tileSize = &tileSize
 	world.height = h
 	world.width = w
 	world.cells = world.newTileSlice()
@@ -101,16 +103,15 @@ func (w *World) ShuffleTiles() {
 }
 
 func (w *World) Resize(delta int32) {
-	w.Lock()
-	defer w.Unlock()
-	w.tileSize += delta
-	if w.tileSize > 256 {
-		w.tileSize = 256
+	tileSize := atomic.LoadInt32(w.tileSize) + delta
+	if tileSize > 256 {
+		tileSize = 256
 	}
-	if w.tileSize < 10 {
-		w.tileSize = 10
+	if tileSize < 10 {
+		tileSize = 10
 	}
-	fmt.Println("World Tile Size:", w.tileSize)
+	atomic.StoreInt32(w.tileSize, tileSize)
+	fmt.Println("World Tile Size:", tileSize)
 }
 
 func mustTexture(textures []*sdl.Texture, err error) []*sdl.Texture {
@@ -168,6 +169,11 @@ func (w *World) Handle(evt sdl.Event) bool {
 		if p.Handle(evt) {
 			handled = true
 		}
+	}
+	switch e := evt.(type) {
+	case *sdl.MouseWheelEvent:
+		w.Resize(e.Y)
+		return true
 	}
 	return handled
 }
