@@ -42,11 +42,12 @@ func NewPlayer(r *sdl.Renderer, c *sdl.GameController, controls map[DIRECTION]sd
 	if err != nil {
 		return nil, err
 	}
-	h = h / 8
-	p.H = &h
-	w = w / 8
-	p.W = &w
-	p.size = p.H
+	p.H = new(int32)
+	p.W = new(int32)
+	*p.H = h / 8
+	*p.W = w / 8
+	p.size = new(int32)
+	*p.size = *p.H
 	speed := int32(5)
 	p.speed = &speed
 	p.frame = new(int32)
@@ -76,8 +77,8 @@ func (p *Player) Paint(r *sdl.Renderer) error {
 	v := r.GetViewport()
 	size := atomic.LoadInt32(p.size)
 	return r.Copy(p.texture, p.getFrame(), &sdl.Rect{
-		X: v.W/2 - atomic.LoadInt32(p.W)/2 + atomic.LoadInt32(p.X),
-		Y: v.H/2 - atomic.LoadInt32(p.H)/2 + atomic.LoadInt32(p.Y),
+		X: v.W/2 - atomic.LoadInt32(p.size)/2 + atomic.LoadInt32(p.X),
+		Y: v.H/2 - atomic.LoadInt32(p.size)/2 + atomic.LoadInt32(p.Y),
 		W: size,
 		H: size,
 	})
@@ -279,6 +280,7 @@ func (p *Player) Handle(evt sdl.Event) bool {
 	case *sdl.JoyButtonEvent:
 	case *sdl.JoyDeviceEvent:
 	case *sdl.KeyboardEvent:
+		// fmt.Printf("keySym:%v sym:%v\n", e.Keysym, e.Keysym.Sym)
 		p.ChkKey()
 	}
 	return false
@@ -310,5 +312,4 @@ func (p *Player) Resize(delta int32) {
 	if size < 10 {
 		atomic.StoreInt32(p.size, 10)
 	}
-	fmt.Println("Player size:", size)
 }

@@ -36,13 +36,14 @@ func EventLoop(r *sdl.Renderer, e Entity) {
 					break
 				}
 			}
+			handled = e.Handle(event)
+
 			if !handled {
 				handled = DefaultHandler.Handle(event)
 			}
 			if !handled {
 				fmt.Printf("Unhandled %T %##v\n", event, event)
 			}
-			e.Handle(event)
 		}
 	}()
 
@@ -67,7 +68,11 @@ func PaintLoop(r *sdl.Renderer, e Entity) {
 	start := time.Now()
 	for range ticker.C {
 		e.Update()
-		e.Paint(r)
+		err := e.Paint(r)
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
 		r.Present()
 		i++
 		took := time.Since(start)

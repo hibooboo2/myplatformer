@@ -2,10 +2,12 @@ package main
 
 import (
 	"fmt"
+	"math/rand"
 	"runtime"
 	"time"
 
 	"github.com/veandco/go-sdl2/sdl"
+	"github.com/veandco/go-sdl2/ttf"
 )
 
 const (
@@ -16,6 +18,8 @@ const (
 )
 
 func main() {
+	rand.Seed(time.Now().Unix())
+
 	r, cleanup := GetRenderer(800, 600)
 	defer cleanup()
 
@@ -25,7 +29,7 @@ func main() {
 
 	go func() {
 		for range time.Tick(time.Second / 1) {
-			w.ShuffleTiles()
+			// w.ShuffleTiles()
 		}
 	}()
 
@@ -70,6 +74,10 @@ func GetRenderer(h, w int32) (*sdl.Renderer, func()) {
 		panic(err)
 	}
 
+	if err := ttf.Init(); err != nil {
+		panic(err)
+	}
+
 	window, r, err := sdl.CreateWindowAndRenderer(w, h, sdl.WINDOW_SHOWN)
 	if err != nil {
 		panic(err)
@@ -84,6 +92,7 @@ func GetRenderer(h, w int32) (*sdl.Renderer, func()) {
 		func() {
 			window.Destroy()
 			sdl.Quit()
+			ttf.Quit()
 			runtime.UnlockOSThread()
 		}
 

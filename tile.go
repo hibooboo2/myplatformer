@@ -3,13 +3,13 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
-	"math/rand"
 	"strings"
 	"sync"
 	"sync/atomic"
 
 	"github.com/veandco/go-sdl2/img"
 	"github.com/veandco/go-sdl2/sdl"
+	"github.com/veandco/go-sdl2/ttf"
 )
 
 var (
@@ -17,7 +17,7 @@ var (
 )
 
 type World struct {
-	cells    [][]Tile
+	cells    *Plane
 	players  map[sdl.JoystickID]*Player
 	tileSize *int32
 	height   int
@@ -27,9 +27,11 @@ type World struct {
 	paused bool
 	r      *sdl.Renderer
 }
+
 type Tile struct {
 	Name    string
 	texture int
+	Loc     sdl.Point
 }
 
 var _ Painter = &World{}
@@ -42,25 +44,90 @@ func (w *World) Paint(r *sdl.Renderer) (err error) {
 	tilesWide := v.W / tileSize
 	tilesHigh := v.H / tileSize
 
-	for row, cols := range w.cells[:tilesHigh+1] {
-		for col, t := range cols[:tilesWide+1] {
+	view := w.cells.View(sdl.Rect{
+		X: atomic.LoadInt32(w.players[999].X) / tileSize,
+		Y: atomic.LoadInt32(w.players[999].Y) / tileSize,
+		H: tilesHigh + 1,
+		W: tilesWide + 1,
+	})
+
+	for row, cols := range *view {
+		for col, t := range cols {
 			if t.texture > len(w.textures)-1 || w.textures[t.texture] == nil {
 				fmt.Println("Texture not found:", t.texture)
 				continue
 			}
-			err = r.Copy(w.textures[t.texture], nil, &sdl.Rect{H: tileSize, W: tileSize, X: int32(col) * tileSize, Y: int32(row) * tileSize})
+			tile := &sdl.Rect{H: tileSize, W: tileSize, X: int32(col) * tileSize, Y: int32(row) * tileSize}
+			err = r.Copy(w.textures[t.texture], nil, tile)
 			if err != nil {
 				w.RUnlock()
 				return err
 			}
+			// locT := renderText(r, fmt.Sprintf("%d,%d", t.Loc.X, t.Loc.Y))
+			// err = r.Copy(locT, nil, &sdl.Rect{
+			// 	H: tileSize / 2,
+			// 	W: tileSize / 2,
+			// })
+			// if err != nil {
+			// 	w.RUnlock()
+			// 	return err
+			// }
 		}
 	}
+	if err := r.SetRenderTarget(nil); err != nil {
+		return err
+	}
 	for _, p := range w.players {
-		p.Paint(r)
+		err = p.Paint(r)
+		if err != nil {
+			return err
+		}
 	}
 
 	w.RUnlock()
 	return nil
+}
+
+var (
+	textOnce    sync.Once
+	locTextures = map[string]*sdl.Texture{}
+	font        *ttf.Font
+)
+
+func renderText(r *sdl.Renderer, text string) *sdl.Texture {
+	r.Clear()
+	textOnce.Do(func() {
+		f, err := ttf.OpenFont("assets/fonts/Flappy.ttf", 20)
+		if err != nil {
+			fmt.Printf("could not load font: %v\n", err)
+			return
+		}
+		font = f
+	})
+	t := locTextures[text]
+	if t != nil {
+		return t
+	}
+
+	c := sdl.Color{R: 200, G: 100, B: 100, A: 128}
+	s, err := font.RenderUTF8Blended(text, c)
+	if err != nil {
+		fmt.Printf("could not render title: %v\n", err)
+		return nil
+	}
+	// defer s.Free()
+
+	t, err = r.CreateTextureFromSurface(s)
+	if err != nil {
+		fmt.Printf("could not create texture: %v\n", err)
+		return nil
+	}
+
+	t.SetBlendMode(sdl.BLENDMODE_BLEND)
+
+	locTextures[text] = t
+
+	return t
 }
 
 func NewWorld(w int, h int, tileSize int32, r *sdl.Renderer) *World {
@@ -69,8 +136,7 @@ func NewWorld(w int, h int, tileSize int32, r *sdl.Renderer) *World {
 	world.tileSize = &tileSize
 	world.height = h
 	world.width = w
-	world.cells = world.newTileSlice()
-	world.ShuffleTiles()
+	world.cells = NewPlane(world.textures)
 	world.r = r
 	world.players = make(map[sdl.JoystickID]*Player)
 	world.players[999] = mustPlayer(NewPlayer(r, nil, WSAD_KEYS))
@@ -89,20 +155,6 @@ func (w *World) newTileSlice() [][]Tile {
 		tiles[row] = make([]Tile, width)
 	}
 	return tiles
-}
-
-func (w *World) ShuffleTiles() {
-	newTiles := w.newTileSlice()
-
-	for row := range newTiles {
-		for col := range newTiles[row] {
-			newTiles[row][col].texture = int(rand.Int63()) % (len(w.textures) - 1)
-		}
-	}
-
-	w.Lock()
-	w.cells = newTiles
-	w.Unlock()
 }
 
 func (w *World) Resize(delta int32) {
@@ -143,6 +195,7 @@ func getTextures(r *sdl.Renderer) ([]*sdl.Texture, error) {
 		if err != nil {
 			return nil, err
 		}
+		t.SetBlendMode(sdl.BLENDMODE_BLEND)
 		textures = append(textures, t)
 	}
 	return textures, nil
