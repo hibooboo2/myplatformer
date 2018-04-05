@@ -18,13 +18,14 @@ var (
 
 type World struct {
 	cells    [][]Tile
-	players  []*Player
+	players  map[sdl.JoystickID]*Player
 	tileSize *int32
 	height   int
 	width    int
 	textures []*sdl.Texture
 	sync.RWMutex
 	paused bool
+	r      *sdl.Renderer
 }
 type Tile struct {
 	Name    string
@@ -70,8 +71,10 @@ func NewWorld(w int, h int, tileSize int32, r *sdl.Renderer) *World {
 	world.width = w
 	world.cells = world.newTileSlice()
 	world.ShuffleTiles()
-	p := mustPlayer(NewPlayer(r))
-	world.players = append(world.players, p)
+	world.r = r
+	world.players = make(map[sdl.JoystickID]*Player)
+	world.players[999] = mustPlayer(NewPlayer(r, nil, WSAD_KEYS))
+	world.players[998] = mustPlayer(NewPlayer(r, nil, ARROW_KEYS))
 	return world
 }
 
@@ -174,6 +177,18 @@ func (w *World) Handle(evt sdl.Event) bool {
 	case *sdl.MouseWheelEvent:
 		w.Resize(e.Y)
 		return true
+	case *sdl.ControllerDeviceEvent:
+		switch e.Type {
+		case sdl.CONTROLLERDEVICEADDED:
+			w.Lock()
+			p := mustPlayer(NewPlayer(w.r, sdl.GameControllerOpen(int(e.Which)), nil))
+			w.players[p.controller] = p
+			w.Unlock()
+		case sdl.CONTROLLERDEVICEREMOVED:
+			w.Lock()
+			delete(w.players, e.Which)
+			w.Unlock()
+		}
 	}
 	return handled
 }

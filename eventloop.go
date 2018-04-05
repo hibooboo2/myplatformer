@@ -48,8 +48,8 @@ func EventLoop(r *sdl.Renderer, e Entity) {
 
 	for {
 		select {
-		case events <- sdl.PollEvent():
-			time.Sleep(time.Millisecond)
+		case events <- sdl.WaitEvent():
+			// time.Sleep(time.Millisecond)
 		case <-quit:
 			close(events)
 			fmt.Println("Quitting")

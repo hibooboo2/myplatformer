@@ -11,7 +11,8 @@ const (
 	_DIRECTION_name_3 = "SOUTH_WEST"
 	_DIRECTION_name_4 = "EASTNORTH_EAST"
 	_DIRECTION_name_5 = "SOUTH_EAST"
-	_DIRECTION_name_6 = "STOP"
+	_DIRECTION_name_6 = "ANY"
+	_DIRECTION_name_7 = "STOP"
 )
 
 var (
@@ -35,8 +36,10 @@ func (i DIRECTION) String() string {
 		return _DIRECTION_name_4[_DIRECTION_index_4[i]:_DIRECTION_index_4[i+1]]
 	case i == 24:
 		return _DIRECTION_name_5
-	case i == 256:
+	case i == 29:
 		return _DIRECTION_name_6
+	case i == 256:
+		return _DIRECTION_name_7
 	default:
 		return "DIRECTION(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
