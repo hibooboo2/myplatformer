@@ -39,6 +39,7 @@ var _ Painter = &World{}
 // Paint will draw the map in the renderer
 func (w *World) Paint(r *sdl.Renderer) (err error) {
 	w.RLock()
+	defer w.RUnlock()
 	v := r.GetViewport()
 	tileSize := atomic.LoadInt32(w.tileSize)
 	tilesWide := v.W / tileSize
@@ -51,32 +52,58 @@ func (w *World) Paint(r *sdl.Renderer) (err error) {
 		W: tilesWide + 1,
 	})
 
+	mainTexture := r.GetRenderTarget()
+
+	var tileText *sdl.Texture
+	tileText, err = r.CreateTexture(sdl.PIXELFORMAT_RGB888, sdl.TEXTUREACCESS_TARGET, v.W, v.H)
+	if err != nil {
+		return err
+	}
+	defer tileText.Destroy()
+	tileText.SetBlendMode(sdl.BLENDMODE_BLEND)
+	tileText.SetAlphaMod(100)
+
+	err = r.SetRenderTarget(tileText)
+	if err != nil {
+		return err
+	}
+
+	tileText.SetColorMod(100, 100, 100)
+	// r.SetDrawColor(0, 0, 0, 0)
+	// r.FillRect(&v)
+
 	for row, cols := range *view {
 		for col, t := range cols {
 			if t.texture > len(w.textures)-1 || w.textures[t.texture] == nil {
 				fmt.Println("Texture not found:", t.texture)
 				continue
 			}
+
 			tile := &sdl.Rect{H: tileSize, W: tileSize, X: int32(col) * tileSize, Y: int32(row) * tileSize}
-			err = r.Copy(w.textures[t.texture], nil, tile)
-			if err != nil {
-				w.RUnlock()
-				return err
-			}
+
 			// locT := renderText(r, fmt.Sprintf("%d,%d", t.Loc.X, t.Loc.Y))
-			// err = r.Copy(locT, nil, &sdl.Rect{
-			// 	H: tileSize / 2,
-			// 	W: tileSize / 2,
-			// })
+			// err = r.Copy(locT, nil, tile)
 			// if err != nil {
-			// 	w.RUnlock()
 			// 	return err
 			// }
+
+			err = r.Copy(w.textures[t.texture], nil, tile)
+			if err != nil {
+				return err
+			}
+
 		}
 	}
-	if err := r.SetRenderTarget(nil); err != nil {
+
+	if err = r.SetRenderTarget(mainTexture); err != nil {
 		return err
 	}
+
+	err = r.Copy(tileText, nil, &v)
+	if err != nil {
+		return err
+	}
+
 	for _, p := range w.players {
 		err = p.Paint(r)
 		if err != nil {
@@ -84,7 +111,6 @@ func (w *World) Paint(r *sdl.Renderer) (err error) {
 		}
 	}
 
-	w.RUnlock()
 	return nil
 }
 
@@ -124,6 +150,7 @@ func renderText(r *sdl.Renderer, text string) *sdl.Texture {
 	}
 
 	t.SetBlendMode(sdl.BLENDMODE_BLEND)
+	t.SetAlphaMod(255)
 
 	locTextures[text] = t
 
@@ -196,6 +223,8 @@ func getTextures(r *sdl.Renderer) ([]*sdl.Texture, error) {
 			return nil, err
 		}
 		t.SetBlendMode(sdl.BLENDMODE_BLEND)
+		t.SetAlphaMod(200)
+
 		textures = append(textures, t)
 	}
 	return textures, nil

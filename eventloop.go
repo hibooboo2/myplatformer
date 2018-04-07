@@ -67,6 +67,7 @@ func PaintLoop(r *sdl.Renderer, e Entity) {
 	i := 0
 	start := time.Now()
 	for range ticker.C {
+		// r.Clear()
 		e.Update()
 		err := e.Paint(r)
 		if err != nil {

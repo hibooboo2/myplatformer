@@ -20,7 +20,7 @@ const (
 func main() {
 	rand.Seed(time.Now().Unix())
 
-	r, cleanup := GetRenderer(800, 600)
+	r, cleanup := GetRenderer(800, 1000)
 	defer cleanup()
 
 	w := NewWorld(2000, 2000, 100, r)
@@ -86,7 +86,7 @@ func GetRenderer(h, w int32) (*sdl.Renderer, func()) {
 	window.SetBordered(true)
 	// window.SetGrab(true)
 	// window.SetWindowOpacity(0.4)
-	sdl.GameControllerOpen(0)
+
 	// go eventLoop()
 	return r,
 		func() {

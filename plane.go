@@ -52,7 +52,7 @@ func (p *Plane) OutofBounds(rect sdl.Rect) bool {
 }
 
 func NewPlane(textures []*sdl.Texture) *Plane {
-	size := int(200)
+	size := int(2000)
 	p := new(Plane)
 	p.originx = int32(size) / 2
 	p.originy = int32(size) / 2
