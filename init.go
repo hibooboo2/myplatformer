@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"math/rand"
+	"os"
 	"runtime"
 	"time"
 
@@ -18,12 +18,14 @@ const (
 )
 
 func main() {
-	rand.Seed(time.Now().Unix())
+	time.AfterFunc(time.Second*60, func() {
+		os.Exit(0)
+	})
 
 	r, cleanup := GetRenderer(800, 1000)
 	defer cleanup()
 
-	w := NewWorld(2000, 2000, 100, r)
+	w := NewWorld(100, 100, 30, r)
 
 	entities := EntityList{w}
 

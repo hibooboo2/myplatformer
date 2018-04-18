@@ -48,7 +48,7 @@ func NewPlayer(r *sdl.Renderer, c *sdl.GameController, controls map[DIRECTION]sd
 	*p.W = w / 8
 	p.size = new(int32)
 	*p.size = *p.H
-	speed := int32(5)
+	speed := int32(32)
 	p.speed = &speed
 	p.frame = new(int32)
 	p.frameCounter = new(int32)

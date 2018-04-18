@@ -42,7 +42,7 @@ func EventLoop(r *sdl.Renderer, e Entity) {
 				handled = DefaultHandler.Handle(event)
 			}
 			if !handled {
-				fmt.Printf("Unhandled %T %##v\n", event, event)
+				// fmt.Printf("Unhandled %T %##v\n", event, event)
 			}
 		}
 	}()
@@ -121,7 +121,7 @@ func handleEvent(event sdl.Event) bool {
 	case *sdl.WindowEvent:
 	case *sdl.MouseButtonEvent:
 	default:
-		fmt.Printf("%T\n", event)
+		// fmt.Printf("%T\n", event)
 		return false
 	}
 	return true

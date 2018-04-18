@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -22,7 +23,7 @@ type World struct {
 	tileSize *int32
 	height   int
 	width    int
-	textures []*sdl.Texture
+	textures []*TileRender
 	sync.RWMutex
 	paused bool
 	r      *sdl.Renderer
@@ -75,7 +76,7 @@ func (w *World) Paint(r *sdl.Renderer) (err error) {
 	for row, cols := range *view {
 		for col, t := range cols {
 			if t.texture > len(w.textures)-1 || w.textures[t.texture] == nil {
-				fmt.Println("Texture not found:", t.texture)
+				// fmt.Println("Texture not found:", t.texture)
 				continue
 			}
 
@@ -87,7 +88,7 @@ func (w *World) Paint(r *sdl.Renderer) (err error) {
 			// 	return err
 			// }
 
-			err = r.Copy(w.textures[t.texture], nil, tile)
+			err = r.Copy(w.textures[t.texture].texture, nil, tile)
 			if err != nil {
 				return err
 			}
@@ -163,7 +164,7 @@ func NewWorld(w int, h int, tileSize int32, r *sdl.Renderer) *World {
 	world.tileSize = &tileSize
 	world.height = h
 	world.width = w
-	world.cells = NewPlane(world.textures)
+	world.cells = NewPlane(world.textures, h, w)
 	world.r = r
 	world.players = make(map[sdl.JoystickID]*Player)
 	world.players[999] = mustPlayer(NewPlayer(r, nil, WSAD_KEYS))
@@ -196,38 +197,93 @@ func (w *World) Resize(delta int32) {
 	fmt.Println("World Tile Size:", tileSize)
 }
 
-func mustTexture(textures []*sdl.Texture, err error) []*sdl.Texture {
+func mustTexture(textures []*TileRender, err error) []*TileRender {
 	if err != nil {
 		panic(err)
 	}
 	return textures
 }
 
-func getTextures(r *sdl.Renderer) ([]*sdl.Texture, error) {
-	var textures []*sdl.Texture
+type TileRender struct {
+	texture      *sdl.Texture
+	Num          int
+	Name         string
+	Transition   string
+	Group        string
+	TileType     string
+	ColorDepth   string
+	TileVersion  string
+	RandomFactor string
+}
+
+func getTextures(r *sdl.Renderer) ([]*TileRender, error) {
+	var textures []*TileRender
 	dir := "assets/images/lostgarden/1/"
 	files, err := ioutil.ReadDir(dir)
 	if err != nil {
 		return nil, err
 	}
-	for _, f := range files {
+	for i, f := range files {
 		if f.IsDir() {
 			continue
 		}
 		if !strings.HasSuffix(f.Name(), ".BMP") {
 			continue
 		}
+		textureName := dir + f.Name()
+		tr, err := NewTileRender(r, textureName)
+		if err == ErrIgnore {
+			continue
+		}
+		tr.Num = i
 
-		t, err := img.LoadTexture(r, dir+f.Name())
+		if err != nil {
+			return nil, err
+		}
+		textures = append(textures, tr)
+	}
+	return textures, nil
+}
+
+var ErrIgnore = fmt.Errorf("Ignore Texture")
+
+func NewTileRender(r *sdl.Renderer, textureName string) (*TileRender, error) {
+	tr := new(TileRender)
+	if r != nil {
+		t, err := img.LoadTexture(r, textureName)
 		if err != nil {
 			return nil, err
 		}
 		t.SetBlendMode(sdl.BLENDMODE_BLEND)
 		t.SetAlphaMod(200)
+		tr.texture = t
 
-		textures = append(textures, t)
 	}
-	return textures, nil
+
+	tr.SetProps(textureName)
+
+	switch tr.TileType {
+	case "n", "s":
+		return nil, ErrIgnore
+	}
+	// log.Printf("%v %v", tr.Group, tr.Transition)
+
+	return tr, nil
+}
+
+// SetProps sets the string properties that are all derived from the name of the testure.
+func (t *TileRender) SetProps(textureFileName string) {
+	spl := strings.Split(textureFileName, "/")
+	t.Name = strings.TrimSuffix(spl[len(spl)-1], ".BMP")
+	if len(t.Name) != 8 {
+		panic("Invalid Name For Texture" + textureFileName)
+	}
+	t.Group = t.Name[:2]
+	t.Transition = t.Name[2:4]
+	t.TileType = t.Name[4:5]
+	t.ColorDepth = t.Name[5:6]
+	t.TileVersion = t.Name[6:7]
+	t.RandomFactor = t.Name[7:]
 }
 
 func (w *World) Destroy() {
@@ -273,4 +329,46 @@ func (w *World) Handle(evt sdl.Event) bool {
 		}
 	}
 	return handled
+}
+
+func genTiles(size, seed int, tilesCanUse []*TileRender) [][]Tile {
+	//Pick fill or not for all groups random throughout cells
+	//Place fill shapes
+	//Transition all fils to adajacent types
+	r := &rngSource{}
+	r.Seed(seed)
+	groups := usableGroups(tilesCanUse)
+	groupKeys := []string{}
+	for k := range groups {
+		groupKeys = append(groupKeys, k)
+	}
+	sort.Slice(groupKeys, func(i int, j int) bool {
+		return groupKeys[i] > groupKeys[j]
+	})
+
+	tiles := make([][]Tile, size)
+	for i := range tiles {
+		tileRow := make([]Tile, size)
+		for j := range tileRow {
+			group := groupKeys[r.GetInt(j, i, len(groupKeys))]
+			tile := groups[group][r.GetInt(j, i, len(groups[group]))]
+			tileRow[j] = Tile{texture: tile.Num}
+		}
+		tiles[i] = tileRow
+	}
+	return tiles
+}
+
+func genFill(tilesCanUse []*TileRender) [][]bool {
+	return nil
+}
+
+func usableGroups(tilesCanUse []*TileRender) map[string][]*TileRender {
+	usable := make(map[string][]*TileRender)
+	for _, t := range tilesCanUse {
+		if t.TileType == "M" {
+			usable[t.Group] = append(usable[t.Group], t)
+		}
+	}
+	return usable
 }
