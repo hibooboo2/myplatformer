@@ -8,11 +8,11 @@ import (
 
 func TestGetInt(t *testing.T) {
 	r := &rngSource{}
-	for i := 1; i < 10; i++ {
+	for i := 1; i < 5; i++ {
 		r.Seed(int(time.Now().UnixNano()))
-		for x := -100; x < 100; x++ {
-			for y := -100; y < 100; y++ {
-				for max := 1; max < 100; max++ {
+		for x := -50; x < 50; x++ {
+			for y := -50; y < 50; y++ {
+				for max := 1; max < 20; max++ {
 					a := r.GetInt(x, y, max)
 					b := r.GetInt(x, y, max)
 					if a != b {
