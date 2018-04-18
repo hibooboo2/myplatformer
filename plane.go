@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"sync"
 
 	"github.com/veandco/go-sdl2/sdl"
@@ -9,68 +8,41 @@ import (
 
 type Plane struct {
 	sync.RWMutex
-	cells            [][]Tile
-	originx, originy int32
-	size             int
-	viewBuffer       [][]Tile
-	prevView         sdl.Rect
+	viewBuffer []Tile
+	tiles      map[sdl.Point]Tile
+	prevView   Rect
+	rnd        *rngSource
 }
 
-func (p *Plane) View(rect sdl.Rect) *[][]Tile {
-	// return &p.cells
+func (p *Plane) View(x, y, h, w int32) *[]Tile {
 	p.RLock()
-	if rect == p.prevView {
+	if x == p.prevView.X && p.prevView.Y == y && p.prevView.H == h && p.prevView.W == w {
 		p.RUnlock()
 		return &p.viewBuffer
 	}
 	p.RUnlock()
-	p.Lock()
-	startX := p.originx + rect.X
-	startY := p.originy + rect.Y
-	rectCp := rect
-	rectCp.X = startX
-	rectCp.Y = startY
-	if p.OutofBounds(rectCp) {
-	}
-	r := &rngSource{}
-	r.Seed(24234)
-	viewBuffer := make([][]Tile, rect.H)
-	for i := int32(0); i < rect.H; i++ {
-		// fmt.Printf("len:%v start:%v end:%v\n", len(view[row]), startX-w/2, startX+w/2)
-		y := i + startY - (rect.H / 2)
-		row := make([]Tile, rect.W)
-		for j := int32(0); j < rect.W; j++ {
-			x := j + startX - (rect.W / 2)
-			row[j] = Tile{texture: r.GetInt(int(x), int(y), 256)}
-		}
-		viewBuffer[i] = row
-	}
-	p.prevView = rect
-	p.viewBuffer = viewBuffer
-	p.Unlock()
-	return &p.viewBuffer
-}
 
-func (p *Plane) OutofBounds(rect sdl.Rect) bool {
-	fullView := &sdl.Rect{
-		W: int32(len(p.cells[0])),
-		H: int32(len(p.cells)),
-		X: p.originx,
-		Y: p.originy,
+	p.Lock()
+	tiles := []Tile{}
+	for i := 0; i < int(h); i++ {
+		yLoc := y - (h / 2) + int32(i)
+		for j := 0; j < int(w); j++ {
+			xLoc := x - (w / 2) + int32(j)
+			t := Tile{texture: p.rnd.GetInt(int(xLoc), int(yLoc), 236), Loc: sdl.Point{X: int32(j), Y: int32(i)}}
+			tiles = append(tiles, t)
+		}
 	}
-	u := rect.Union(fullView)
-	fmt.Println(rect, fullView, u)
-	return false
+	p.viewBuffer = tiles
+	p.prevView = Rect{sdl.Rect{X: x, Y: y, W: w, H: h}}
+	p.Unlock()
+
+	return &p.viewBuffer
 }
 
 func NewPlane(textures []*TileRender, h int, w int) *Plane {
 	p := new(Plane)
-	p.originx = int32(w) / 2
-	p.originy = int32(h) / 2
-	p.cells = NewTiles(h, w)
-	p.size = (h + w) / 2
-	// p.ShuffleTiles(textures)
-	p.cells = genTiles(p.size, 24325, textures)
+	p.rnd = new(rngSource)
+	p.rnd.Seed(234524356)
 	return p
 }
 

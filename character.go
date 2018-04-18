@@ -29,6 +29,7 @@ type Player struct {
 	keys         []uint8
 	con          *sdl.GameController
 	keyControls  map[DIRECTION]sdl.Keycode
+	main         bool
 }
 
 func NewPlayer(r *sdl.Renderer, c *sdl.GameController, controls map[DIRECTION]sdl.Keycode) (*Player, error) {
@@ -48,7 +49,7 @@ func NewPlayer(r *sdl.Renderer, c *sdl.GameController, controls map[DIRECTION]sd
 	*p.W = w / 8
 	p.size = new(int32)
 	*p.size = *p.H
-	speed := int32(32)
+	speed := int32(8)
 	p.speed = &speed
 	p.frame = new(int32)
 	p.frameCounter = new(int32)
@@ -76,9 +77,18 @@ func mustPlayer(p *Player, err error) *Player {
 func (p *Player) Paint(r *sdl.Renderer) error {
 	v := r.GetViewport()
 	size := atomic.LoadInt32(p.size)
+	if p.main {
+		return r.Copy(p.texture, p.getFrame(), &sdl.Rect{
+			X: v.W/2 - size/2,
+			Y: v.H/2 - size/2,
+			W: size,
+			H: size,
+		})
+	}
+
 	return r.Copy(p.texture, p.getFrame(), &sdl.Rect{
-		X: v.W/2 - atomic.LoadInt32(p.size)/2 + atomic.LoadInt32(p.X),
-		Y: v.H/2 - atomic.LoadInt32(p.size)/2 + atomic.LoadInt32(p.Y),
+		X: v.W/2 - size/2 + atomic.LoadInt32(p.X),
+		Y: v.H/2 - size/2 + atomic.LoadInt32(p.Y),
 		W: size,
 		H: size,
 	})
@@ -210,7 +220,7 @@ func (p *Player) Update() {
 		atomic.AddInt32(p.X, spd)
 	}
 
-	if framCounter%atomic.LoadInt32(p.speed) == 0 {
+	if framCounter%8 == 0 {
 		atomic.StoreInt32(p.frame, (atomic.LoadInt32(p.frame)+1)%8)
 	}
 	if framCounter > 10000 {
